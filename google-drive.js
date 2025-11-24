@@ -486,11 +486,14 @@ async function handleVideoUpload(event) {
 function addVideoToGallery(videoUrl) {
   const gallery = document.getElementById("videoGallery");
   const videoCard = document.createElement("div");
-  videoCard.className = "relative group";
+  videoCard.className = "relative group bg-gray-50 border-2 border-gray-200 rounded-lg p-3 flex items-center gap-2";
   videoCard.innerHTML = `
-    <video src="${videoUrl}" class="w-full h-32 object-cover rounded-lg border-2 border-gray-200" controls></video>
+    <i class="fas fa-video text-red-500 text-xl"></i>
+    <a href="${videoUrl}" target="_blank" class="flex-1 text-blue-600 hover:underline text-sm truncate">
+      ${videoUrl.split('/').pop() || 'Video'}
+    </a>
     <button type="button" onclick="removeVideo('${videoUrl}')"
-      class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+      class="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700 transition flex-shrink-0">
       <i class="fas fa-times text-xs"></i>
     </button>
   `;

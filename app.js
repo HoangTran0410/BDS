@@ -185,9 +185,15 @@ function viewDetail(id) {
             ${(item.videos && (Array.isArray(item.videos) ? item.videos.length > 0 : item.videos)) || item.video ? `
                 <div>
                     <p class="text-gray-600 text-sm font-semibold mb-2">Video</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div class="space-y-2">
                         ${(Array.isArray(item.videos) ? item.videos : (item.video ? [item.video] : [])).map(vid => `
-                            <video src="${vid}" class="w-full rounded-lg border-2 border-gray-200" controls></video>
+                            <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-3 flex items-center gap-2">
+                                <i class="fas fa-video text-red-500 text-xl"></i>
+                                <a href="${vid}" target="_blank" class="flex-1 text-blue-600 hover:underline text-sm truncate">
+                                    Xem video
+                                </a>
+                                <i class="fas fa-external-link-alt text-gray-400"></i>
+                            </div>
                         `).join('')}
                     </div>
                 </div>

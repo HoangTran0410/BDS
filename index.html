@@ -63,11 +63,12 @@
                         <i class="fab fa-google-drive"></i>
                         <span id="googleDriveText">Đăng nhập Drive</span>
                     </button>
-                    <div id="userInfo" class="hidden flex items-center gap-2">
-                        <img id="userAvatar" class="w-8 h-8 rounded-full" alt="User">
-                        <span id="userName" class="text-sm text-gray-700"></span>
-                        <button onclick="signOutGoogle()" class="text-red-600 hover:text-red-800">
+                    <div id="userInfo" class="hidden flex items-center gap-3 bg-white border-2 border-gray-200 rounded-lg px-4 py-2">
+                        <img id="userAvatar" class="w-12 h-12 rounded-full border-2 border-blue-500" alt="User">
+                        <span id="userName" class="text-base font-semibold text-gray-800"></span>
+                        <button onclick="signOutGoogle()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition ml-2">
                             <i class="fas fa-sign-out-alt"></i>
+                            <span>Đăng xuất</span>
                         </button>
                     </div>
                 </div>
