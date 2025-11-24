@@ -358,14 +358,29 @@ function showNotification(message, type = 'info') {
         info: 'bg-blue-500'
     };
 
+    // Get or create notification container
+    let container = document.getElementById('notificationContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notificationContainer';
+        container.className = 'fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-md';
+        document.body.appendChild(container);
+    }
+
     const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in`;
+    notification.className = `${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in break-words`;
     notification.textContent = message;
-    document.body.appendChild(notification);
+    container.appendChild(notification);
 
     setTimeout(() => {
         notification.classList.add('opacity-0');
-        setTimeout(() => notification.remove(), 300);
+        setTimeout(() => {
+            notification.remove();
+            // Remove container if empty
+            if (container.children.length === 0) {
+                container.remove();
+            }
+        }, 300);
     }, 3000);
 }
 

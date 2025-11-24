@@ -3,7 +3,8 @@ const GOOGLE_CONFIG = {
   CLIENT_ID:
     "460725726110-euiej8okd5hfjdd2sm49guatamd10p9j.apps.googleusercontent.com", // Thay bằng Client ID của bạn
   API_KEY: "AIzaSyCQfa_vuzm_u-Z58yGPSP6u2lczWeEQ7SE", // Thay bằng API Key của bạn (đã restrict domain + API)
-  SCOPES: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile",
+  SCOPES:
+    "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile",
   DISCOVERY_DOCS: [
     "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
   ],
@@ -100,7 +101,7 @@ function initGIS() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CONFIG.CLIENT_ID,
     scope: GOOGLE_CONFIG.SCOPES,
-    callback: (tokenResponse) => {
+    callback: async (tokenResponse) => {
       googleAccessToken = tokenResponse.access_token;
       gapi.client.setToken({ access_token: googleAccessToken });
 
@@ -111,7 +112,10 @@ function initGIS() {
       localStorage.setItem("googleAccessToken", googleAccessToken);
       updateGoogleUI(true);
 
-      // Auto sync to Drive
+      // Restore data from Drive first (if exists)
+      await restoreDataFromDrive();
+
+      // Then sync current data to Drive
       syncDataToDrive();
 
       showNotification("Đã kết nối Google Drive!", "success");
@@ -141,19 +145,27 @@ function maybeEnableButtons() {
       updateGoogleUI(true);
 
       // Verify token is still valid by getting user info
-      getUserInfo().catch((error) => {
-        console.log("Token expired or invalid, clearing...");
-        // Token expired, clear everything
-        localStorage.removeItem("googleAccessToken");
-        localStorage.removeItem("googleUser");
-        googleAccessToken = null;
-        googleUser = null;
-        gapi.client.setToken("");
-        updateGoogleUI(false);
+      getUserInfo()
+        .then(async () => {
+          // Token is valid, restore data from Drive
+          await restoreDataFromDrive();
+        })
+        .catch(() => {
+          console.log("Token expired or invalid, clearing...");
+          // Token expired, clear everything
+          localStorage.removeItem("googleAccessToken");
+          localStorage.removeItem("googleUser");
+          googleAccessToken = null;
+          googleUser = null;
+          gapi.client.setToken("");
+          updateGoogleUI(false);
 
-        // Show notification
-        showNotification("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", "warning");
-      });
+          // Show notification
+          showNotification(
+            "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+            "warning"
+          );
+        });
     }
   }
 }
@@ -486,11 +498,12 @@ async function handleVideoUpload(event) {
 function addVideoToGallery(videoUrl) {
   const gallery = document.getElementById("videoGallery");
   const videoCard = document.createElement("div");
-  videoCard.className = "relative group bg-gray-50 border-2 border-gray-200 rounded-lg p-3 flex items-center gap-2";
+  videoCard.className =
+    "relative group bg-gray-50 border-2 border-gray-200 rounded-lg p-3 flex items-center gap-2";
   videoCard.innerHTML = `
     <i class="fas fa-video text-red-500 text-xl"></i>
     <a href="${videoUrl}" target="_blank" class="flex-1 text-blue-600 hover:underline text-sm truncate">
-      ${videoUrl.split('/').pop() || 'Video'}
+      ${videoUrl.split("/").pop() || "Video"}
     </a>
     <button type="button" onclick="removeVideo('${videoUrl}')"
       class="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700 transition flex-shrink-0">
@@ -528,7 +541,10 @@ async function syncDataToDrive() {
     });
 
     // Check if backup file exists in BDS Manager folder
-    const existingFileId = await findFileByName("bds_data_backup.json", rootFolderId);
+    const existingFileId = await findFileByName(
+      "bds_data_backup.json",
+      rootFolderId
+    );
 
     if (existingFileId) {
       // Update existing file
@@ -541,6 +557,80 @@ async function syncDataToDrive() {
     console.log("Data synced to Drive");
   } catch (error) {
     console.error("Error syncing to Drive:", error);
+  }
+}
+
+// Restore data from Google Drive
+async function restoreDataFromDrive() {
+  if (!googleAccessToken) {
+    console.log("No Google access token");
+    return;
+  }
+
+  try {
+    // Get or create root folder "BDS Manager"
+    if (!rootFolderId) {
+      rootFolderId = await getOrCreateFolder("BDS Manager");
+    }
+
+    // Find backup file
+    const fileId = await findFileByName("bds_data_backup.json", rootFolderId);
+
+    if (!fileId) {
+      console.log("No backup file found on Drive");
+      showNotification("Không tìm thấy file backup trên Drive", "info");
+      return;
+    }
+
+    // Download file content
+    const response = await gapi.client.drive.files.get({
+      fileId: fileId,
+      alt: "media",
+    });
+
+    if (response.body) {
+      const driveData = JSON.parse(response.body);
+
+      if (!Array.isArray(driveData)) {
+        throw new Error("Invalid backup format");
+      }
+
+      // Get current local data
+      const localData = bdsData || [];
+
+      // Merge strategy: Drive data takes priority, but keep local items not in Drive
+      const driveIds = new Set(driveData.map((item) => item.id));
+      const localOnlyItems = localData.filter((item) => !driveIds.has(item.id));
+
+      // Combine: Drive data + local-only items
+      bdsData = [...driveData, ...localOnlyItems];
+
+      // Save merged data to localStorage
+      if (typeof saveToLocalStorage === "function") {
+        saveToLocalStorage();
+      } else {
+        localStorage.setItem("bdsData", JSON.stringify(bdsData));
+      }
+
+      // Update UI
+      if (typeof filterData === "function") {
+        filterData();
+      }
+      if (typeof updateStatistics === "function") {
+        updateStatistics();
+      }
+
+      console.log(`Restored ${driveData.length} items from Drive`);
+      showNotification(
+        `Đã khôi phục ${driveData.length} BĐS từ Google Drive!`,
+        "success"
+      );
+
+      return driveData;
+    }
+  } catch (error) {
+    console.error("Error restoring from Drive:", error);
+    showNotification("Lỗi khi tải dữ liệu từ Drive!", "error");
   }
 }
 
